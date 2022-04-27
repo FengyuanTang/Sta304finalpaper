@@ -1,12 +1,10 @@
 ---
-title: "My title"
-subtitle: "My subtitle if needed"
+title: "The analysis of occupancy rates of beds in the Shelter Support and Housing Administration division's Shelter Management Information System"
 author: 
-  - First author
-  - Another author
-thanks: "Code and data are available at: LINK."
+  - Fengyuan Tang
+thanks: "Code and data are available at: https://github.com/FengyuanTang/Sta304finalpaper"
 date: "`r format(Sys.time(), '%d %B %Y')`"
-abstract: "First sentence. Second sentence. Third sentence. Fourth sentence."
+abstract: "In this paper, my goal is to analyze the variables that have significant effects on the proportion of actual bed capacity that is occupied for the reporting date. It was found that contributing factors include the programs' locations, gender, age, household size of the service user group, the type of overnight service provided, the program area. Furthermore, the number of beds showing as available for occupancy, rooms that a program has been approved to provide, rooms showing as occupied by a shelter user, rooms that are showing as available for occupancy that are not occupied, and rooms that are not currently available also have significant influences on the response variable. This matters because it provides updated information about the ways to effectively improve occupancy rates of beds in the shelter and overnight service programs administered by SSHA."
 output:
   bookdown::pdf_document2
 toc: FALSE
@@ -15,93 +13,322 @@ bibliography: references.bib
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
-
 library(tidyverse)
-library(palmerpenguins)
+library(janitor)
+library(readxl)
+library(knitr)
+library(patchwork)
+library(car)
 ```
+
+```{r, include=FALSE}
+library(readr)
+#import data library(readr)
+library(opendatatoronto)
+library(dplyr)
+ 
+# get package
+package <- show_package("21c83b32-d5a8-4106-a54f-010dbe49f6f2")
+package
+ 
+# get all resources for this package
+resources <- list_package_resources("21c83b32-d5a8-4106-a54f-010dbe49f6f2")
+ 
+# identify datastore resources; by default, Toronto Open Data sets datastore resource format to CSV for non-geospatial and GeoJSON for geospatial resources
+datastore_resources <- filter(resources, tolower(format) %in% c('csv', 'geojson'))
+ 
+# load the first datastore resource as a sample
+data <- filter(datastore_resources, row_number()==1) %>% get_resource()
+data
+```
+
 
 # Introduction
 
-You can and should cross-reference sections and sub-sections. For instance, Section \@ref(data). R Markdown automatically makes the sections lower case and adds a dash to spaces to generate labels, for instance, Section \@ref(first-discussion-point). 
+The Daily Shelter & Overnight Service Occupancy & Capacity provides a list of active overnight shelters and allied services in the Shelter Support and Housing Administration division's Shelter Management Information System database [@citeData]. It provides the daily updated information about shelters and overnight service programs administered by SSHA, including the program's operator, location, classification, occupancy and capacity [@citeData]. This dataset was conducted in 2021 [@citeData]. Based on the current events relating to the daily shelters and overnight service occupancy as well as capacity, we wanted to focus on the occupancy rates of beds in this system. 
+  
+In the data section, I would examine all variables and possible data sets that are similar. I would also contain graphs which help people to understand what the variables look like. Furthermore, I would convey the features of this data, including summary statistics and relationships between the variables.  In the model section, I conduct some explanatory data analysis as well as conduct the EDA. This includes the numerical Summaries and the graphical summaries. The first step is choosing a starting model, which is also called the full model. The second step is to ensure there is no multicollinearity in the model, so I build new models. Then, I check the 2 conditions to make sure that i can use residual plots to analyze the model. After that, I use residual plots to identify potential violations against model assumptions (linearity, normality, constant variance, and uncorrelatedness). The next step is to explore model transformations to correct assumption violations and fit a new model with transformed variables. When I begin to reduce the model, I conduct automated selection and manual selection. Model comparisons determine which model is better so I use ANOVA to compare these models. Then, I apply the diagnostic plots on both the manual reduced model and the auto reduced model. The results section displays the findings, including summary statistics, tables, graphs, images and statistical analysis. 
 
+The results interpret that contributing factors include the city of the location of the program (LOCATION_CITY),the gender, age, household size of the service user group (SECTOR), the type of overnight service provided (OVERNIGHT_SERVICE_TYPE), the PROGRAM_AREA, which includes base shelter and overnight services system, or a temporary response program. Furthermore,  the number of beds showing as available for occupancy (T_CAPACITY_ACTUAL_BED), rooms that a program has been approved to provide (T_CAPACITY_FUNDING_BED), rooms showing as occupied by a shelter user (T_OCCUPIED_BEDS), rooms that are showing as available for occupancy that are not occupied as of the occupancy date (T_UNOCCUPIED_BEDS), rooms that are not currently available in a program (T_UNAVAILABLE_BEDS) also have significant impacts on the proportion of actual bed capacity that is occupied for the reporting date. Moreover, I would include discussions of some interesting points and weaknesses of our paper.
+
+The importance is that, as people have been impacted by COVID-19, we believe that there would be some important changes in the daily shelters and overnight service programs. Our aim is to analyze the factors that have significant effects on the proportion of actual bed capacity that is occupied for the reporting date. Therefore, I build models to find its important contributing factors. In this way, it promotes the efficiency of overnight shelters and allied services in the system. Furthermore, it could development government policies and make the society more satisfied. Moreover, there would be an improvement of living standards for those people who have a demand for shelters and overnight services.
 
 
 # Data
 
-Our data is of penguins (Figure \@ref(fig:bills)).
+In this paper, we focused on analyzing the contributing factors of the proportion of actual bed capacity that is occupied for the reporting date. We used R programming language [@citeR] tidy-verse [@citetidy],  janitor [@citejanitor],  readxl [@citereadxl], knitr [@citeknitr], ggplot2 [@citeggplot2], dplyr [@citedplyr], patchwork [@citePatch], car [@citeCar] and readr [@citeReadr].
 
-```{r bills, fig.cap="Bills of penguins", echo = FALSE}
-ggplot(penguins, aes(x = island, fill = species)) +
-  geom_bar(alpha = 0.8) +
-  scale_fill_manual(values = c("darkorange","purple","cyan4"),
-                    guide = FALSE) +
-  theme_minimal() +
-  facet_wrap(~species, ncol = 1) +
-  coord_flip()
+The data-set is called "Daily Shelter & Overnight Service Occupancy & Capacity" [@citeData]. The variables I used include LOCATION_CITY, which is the city of the location of the program [@citeData]. SETOR is defined as the means of categorizing homeless shelters based on the gender, age and household size of the service user group(s) served at the shelter location [@citeData]. PROGRAM_MODEL	is a classification of shelter programs as either Emergency or Transitional [@citeData]. OVERNIGHT_SERVICE_TYPE identifies the type of overnight service being provided [@citeData]. PROGRAM_AREA indicates whether the program is part of the base shelter and overnight services system, or is part of a temporary response program [@citeData]. CAPACITY_ACTUAL_BED shows the number of beds showing as available for occupancy in the Shelter Management Information System [@citeData]. CAPACITY_FUNDING_BED	displays the number of beds that a program has been approved to provide [@citeData]. OCCUPIED_BEDS illustrates the number of beds showing as occupied by a shelter user in the Shelter Management Information System for this program for this date [@citeData]. UNOCCUPIED_BEDS	is the number of beds that are showing as available for occupancy that are not occupied as of the occupancy date [@citeData]. This is calculated as CAPACITY_ACTUAL_BED minus OCCUPIED_BEDS [@citeData]. UNAVAILABLE_BEDS	shows the number of beds that are not currently available in a program [@citeData]. Specifically, this is calculated as CAPACITY_FUNDING_BED minus CAPACITY_ACTUAL_BED [@citeData]. The response variable is called OCCUPANCY_RATE_BEDS, which displays the proportion of actual bed capacity that is occupied for the reporting date [@citeData]. 
+
+Since the data-set is not tidy, I filter the missing values in some important variables and only keep the data that is "Bed Based Capacity". Specifically, the variable CAPACITY_TYPE is defined as whether the capacity for this program is measured in rooms or beds [@citeData]. The project creates a histogram for the proportion of actual bed capacity that is occupied for the reporting date. This is calculated as OCCUPIED_BEDS divided by CAPACITY_ACTUAL_BED [@citeData]. I also make plots about some possible predictors, including CAPACITY_ACTUAL_BED, CAPACITY_FUNDING_BED, OCCUPIED_BEDS, and UNOCCUPIED_BEDS. Then, I choose my starting model by using the results of EDA and my common sense. Drawing scatter-plots between yi and y_hat and that between numerical predictors can be used to check Condition 1 and 2. The Residual vs. Fitted, Residual vs. Predictors and Residual QQ Plot can decide whether each regression modelling assumption is satisfied. Since power transform fails to work if variable contains 0, we add 0.0000001 instead. After applying the box-cox transformation, I use mutate to create transformed variables and fit a new model. This is called candidate model 1, and model comparisons can determine which model is better. Same methods are applied, including checking two conditions, creating residual plots, and so on.
+
+```{r, include=FALSE}
+data_clean <- data%>%
+  filter(!is.na(OCCUPANCY_RATE_BEDS)
+         &!is.na(CAPACITY_ACTUAL_BED)
+         &!is.na(CAPACITY_FUNDING_BED)
+         &!is.na(OCCUPIED_BEDS)
+         &!is.na(UNOCCUPIED_BEDS)
+         &!is.na(UNAVAILABLE_BEDS)
+         &CAPACITY_TYPE=="Bed Based Capacity")
 ```
 
-Talk more about it.
-
-Also bills and their average (Figure \@ref(fig:billssssss)). (Notice how you can change the height and width so they don't take the whole page?)
-
-```{r billssssss, fig.cap="More bills of penguins", echo = FALSE, fig.width=8, fig.height=4}
-
-# This needs to be about the random data tha tI sasmpled?
-ggplot(penguins, aes(x = island, fill = species)) +
-  geom_bar(alpha = 0.8) +
-  scale_fill_manual(values = c("darkorange","purple","cyan4"),
-                    guide = FALSE) +
-  theme_minimal() +
-  facet_wrap(~species, ncol = 1) +
-  coord_flip()
+```{r, include=FALSE}
+summarise(data_clean)
 ```
 
-Talk way more about it. 
+## Summary statistics
+It shows that the proportion of actual bed capacity has a minimum of 7.14, and a maximum of 100. The average is 95.62. The number of rooms showing as available for occupancy has a minimum of 1, and a maximum of 235. The average is 34.73. The number of rooms that a program is has been approved to provide has a minimum of 2, and a maximum of 235. The average is 36.5. The number of rooms showing as occupied has a minimum of 1, and a maximum of 234. The average is 33.85. The number of beds that are showing as available for occupancy that are not occupied has a minimum of 0, and a maximum of 39. The average is 0.88. The number of beds that are not currently available in a program has a minimum of 0, and a maximum of 180. 
 
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+summary(data_clean$OCCUPANCY_RATE_BEDS)
+summary(data_clean$CAPACITY_ACTUAL_BED)
+summary(data_clean$CAPACITY_FUNDING_BED)
+summary(data_clean$OCCUPIED_BEDS)
+summary(data_clean$UNOCCUPIED_BEDS)
+summary(data_clean$UNAVAILABLE_BEDS)
+```
 
+## Exploratory Data Analysis
+
+```{r Figure1, fig.cap="the proportion of actual bed capacity that is occupied for the reporting date", echo=FALSE, warning=FALSE, message=FALSE}
+data_clean%>%
+  ggplot(aes(x=OCCUPANCY_RATE_BEDS))+
+  geom_histogram(color='black',fill='steelblue',xlim=c(0,10),ylim=c(0,10))+
+  labs(title="Histogram of the proportion of actual bed capacity that is occupied")+
+  theme_minimal()
+```
+I should conduct the exploratory data analysis in order to build the starting model.  Thus, Figure \@ref(fig:Figure1) is a histogram of the response variable. The graph is extremely right skewed. It will be much better if it is normal distribution. This problem can be fixed later by using model transformation.
+
+```{r Figure2, fig.cap="the number of beds showing as available for occupancy in the Shelter Management Information System", echo=FALSE, warning=FALSE, message=FALSE}
+# Create histograms for some possible predictors.
+hist1 = ggplot(data= data_clean,aes(x=CAPACITY_ACTUAL_BED))+
+  geom_histogram(color='black',fill='steelblue')+
+  labs(title="Number of available beds")
+```
+
+```{r Figure3, fig.cap="the number of beds that a program has been approved to provide", echo=FALSE, warning=FALSE, message=FALSE}
+hist2 = ggplot(data= data_clean,aes(x=CAPACITY_FUNDING_BED))+
+  geom_histogram(color='black',fill='steelblue')+
+  labs(title="Number of beds provided")
+```
+
+```{r Figure4, fig.cap="Occupied beds vs. occupied rates", echo=FALSE, warning=FALSE, message=FALSE}
+# Create scatter plots to analyze the relationship between the response variable and other possible predictors.
+sca1 = ggplot(data=data_clean, aes(x=OCCUPIED_BEDS,y=OCCUPANCY_RATE_BEDS)) + 
+  geom_point() + geom_smooth(method=lm, se=FALSE) + labs(x="Occuppied beds",
+                                                         y="Occupancy rates",
+                                                         title="Occupied beds and occupied rates")
+```
+
+```{r Figure5, fig.cap="Unoccupied beds vs. occupied rates", echo=FALSE, warning=FALSE, message=FALSE}
+sca2 = ggplot(data=data_clean, aes(x=UNOCCUPIED_BEDS,y=OCCUPANCY_RATE_BEDS)) + 
+  geom_point() + geom_smooth(method=lm, se=FALSE) + labs(x="Unoccuppied beds",
+                                                         y="Occupancy rates",
+                                                         title="Unoccupied beds and occupied rates")
+```
+
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+(hist1|hist2)/
+  (sca1|sca2)
+```
+From Figure \@ref(fig:Figure2), \@ref(fig:Figure3), \@ref(fig:Figure4), and \@ref(fig:Figure5), I infer that variables “CAPACITY_ACTUAL_BED", "CAPACITY_FUNDING_BED", "OCCUPIED_BEDS" and "UNOCCUPIED_BEDS" could have influence on the response variable. Therefore, I include them in the starting model.
+
+Then, I create bar plots for some categorical variables
+```{r Figure6, fig.cap="Name of the organization providing the overnight service", echo=FALSE, warning=FALSE, message=FALSE}
+bar1 = ggplot(data=data_clean,aes(x=ORGANIZATION_NAME))+geom_bar()+
+  labs(title="Bar plots of organizations' names") 
+# Do not need to include variable ORGANIZATION_NAME.
+```
+
+```{r Figure7, fig.cap="The name of the location of the program", echo=FALSE, warning=FALSE, message=FALSE}
+bar2 = ggplot(data=data_clean,aes(x=LOCATION_CITY))+geom_bar()+
+  labs(title="Bar plots of the city of the location") 
+# Do not need to include variable LOCATION_CITY.
+```
+
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+(bar1)/
+  (bar2)
+```
+Figure \@ref(fig:Figure6) and Figure \@ref(fig:Figure7) show that the data volume is unbalanced. Thus, the credibility is weak and we do not need to include them. 
+
+```{r Figure8, fig.cap="whether the program is part of the base shelter and overnight services system, or is part of a temporary response program", echo=FALSE, warning=FALSE, message=FALSE}
+bar3 = ggplot(data=data_clean,aes(x=PROGRAM_AREA))+geom_bar()+
+  labs(title="Figure Bar plots of the program area") 
+# include variable ORGANIZATION_NAME.
+```
+
+```{r Figure9, fig.cap="the type of overnight service being provided", echo=FALSE, warning=FALSE, message=FALSE}
+bar4 = ggplot(data=data_clean,aes(x=OVERNIGHT_SERVICE_TYPE))+geom_bar()+
+  labs(title="Bar plots of the type of overnight service being provided") 
+# Do not need to include variable ORGANIZATION_NAME.
+```
+
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+(bar3)/
+  (bar4)
+```
+From the website, PROGRAM_AREA displays whether the program is part of the base shelter and overnight services system, or is part of a temporary response program [@citeData]. Figure \@ref(fig:Figure8) illustrates that most programs are in the type of Base Shelter and Overnight Services System. These programs are intended to be regular, year-round, and permanent [@citeData]. Also, the variable OVERNIGHT_SERVICE_TYPE shows the type of overnight service provided [@citeData]. This includes Shelter, 24-Hour Respite, Motel/Hotel, Interim Housing, Warming Center, 24-Hour Woman's Drop-in, Isolation/Recovery Site [@citeData]. From Figure \@ref(fig:Figure9), it shows that shelters are the most type of overnight services provided in this system. 
 
 # Model
 
-\begin{equation}
-Pr(\theta | y) = \frac{Pr(y | \theta) Pr(\theta)}{Pr(y)}  (\#eq:bayes)
-\end{equation}
+The second step is to create my starting model by using common sense and results of EDA. Also, predictors can’t have overlapping information. 
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+start_model = lm(OCCUPANCY_RATE_BEDS ~ LOCATION_CITY + SECTOR + PROGRAM_MODEL + 
+                   OVERNIGHT_SERVICE_TYPE + PROGRAM_AREA + CAPACITY_ACTUAL_BED +
+                   CAPACITY_FUNDING_BED + OCCUPIED_BEDS + UNOCCUPIED_BEDS + 
+                   UNAVAILABLE_BEDS, data = data_clean)
+summary(start_model)
+```
 
-Equation \@ref(eq:bayes) seems useful, eh?
+Here are the two conditions we need to check before assessing the model assumptions. I want to make sure that we can use residual plots to analyze the model.
+```{r Figure10, fig.cap="Condition 1: draw a scatter plot between yi and y_hat", echo=FALSE, warning=FALSE, message=FALSE}
 
-Here's a dumb example of how to use some references: In paper we run our analysis in `R` [@citeR]. We also use the `tidyverse` which was written by @thereferencecanbewhatever If we were interested in baseball data then @citeLahman could be useful. 
+y_hat <- fitted(start_model)
+yi <- data_clean$OCCUPANCY_RATE_BEDS
+plot(yi[0:length(y_hat)], y_hat)
+```
 
-We can use maths by including latex between dollar signs, for instance $\theta$.
+```{r Figure11, fig.cap="Condition 2: draw scatter plots between numerical predictors", echo=FALSE, warning=FALSE, message=FALSE}
 
+pairs(~CAPACITY_ACTUAL_BED +CAPACITY_FUNDING_BED + OCCUPIED_BEDS + 
+        UNOCCUPIED_BEDS + UNAVAILABLE_BEDS + OCCUPANCY_RATE_BEDS, 
+      data=data_clean)
+```
+Now, I check the two conditions, which are Figure \@ref(fig:Figure10) and Figure \@ref(fig:Figure11). I draw a scatter-plot between Yi and Y_hat to check condition 1. It shows that there is a strong pattern between them. Thus, Condition 1 is satisfied. Next, we draw scatter plots between numerical predictors. This graph displays that there is no or linear relationship between these predictors. Therefore, Condition 2 is satisfied.
+
+After that, I use plots to identify potential violations against model assumptions, which are linearity, normality, constant variance, and uncorrelatedness. Figure \@ref(fig:Figure12) is Residual vs. Fitted.
+```{r Figure12, fig.cap="Residual vs. Fitted.", echo=FALSE, warning=FALSE,message=FALSE}
+# Residual vs Fitted
+res<-rstandard(start_model)
+y_hat<-fitted(start_model)
+plot(y_hat, res)
+```
+In this graph, the linearity holds, but the independence and constant variance can be improved.
+
+Figure \@ref(fig:Figure13) is Residual vs. Predictors.
+```{r Figure13, fig.cap="Residual vs. Predictors.", echo=FALSE, warning=FALSE, message=FALSE}
+# Residual Plot
+# Residual vs. Predictors
+par(mfrow = c(3, 2))
+plot(data_clean$CAPACITY_ACTUAL_BED[0:length(res)], res)
+plot(data_clean$CAPACITY_FUNDING_BED[0:length(res)], res)
+plot(data_clean$OCCUPIED_BEDS[0:length(res)], res)
+plot(data_clean$UNOCCUPIED_BEDS[0:length(res)], res)
+plot(data_clean$UNAVAILABLE_BEDS[0:length(res)], res)
+```
+
+Figure \@ref(fig:Figure14) is Normal Quantile-Quantile (QQ) plots. 
+```{r Figure14, fig.cap="Normal Quantile-Quantile (QQ) plots.", echo=FALSE, warning=FALSE, message=FALSE}
+# Residual QQ plot
+qqnorm(res)
+qqline(res)
+```
+To summarize, the linearity should hold. However, the constant variance, independence and normality may be violated and can be improved by using model transformations. There is a severe deviation in the Normal QQ plot.
+
+The next step is to explore model transformations to correct assumption violations. Since the power transform fails to work if any variable contains 0, one way to fix this problem is to add 0.0000001 to this variable. After that, I apply box-cox transformation for numerical variables.
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+data_clean <- data_clean %>%
+  mutate(CAPACITY_ACTUAL_BED = CAPACITY_ACTUAL_BED+0.0000001,
+         CAPACITY_FUNDING_BED =CAPACITY_FUNDING_BED+0.0000001,
+         OCCUPIED_BEDS=OCCUPIED_BEDS+0.0000001,
+         UNOCCUPIED_BEDS=UNOCCUPIED_BEDS+0.0000001, 
+         UNAVAILABLE_BEDS=UNAVAILABLE_BEDS+0.0000001,
+         OCCUPANCY_RATE_BEDS=OCCUPANCY_RATE_BEDS+0.0000001)
+summary(powerTransform(cbind(data_clean$CAPACITY_ACTUAL_BED,
+                             data_clean$CAPACITY_FUNDING_BED,
+                             data_clean$OCCUPIED_BEDS,
+                             data_clean$UNOCCUPIED_BEDS,
+                             data_clean$UNAVAILABLE_BEDS)))
+```
+
+Then, I create the transformed variables.
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+T_data_clean <- data_clean %>%
+  mutate( T_CAPACITY_ACTUAL_BED=CAPACITY_ACTUAL_BED^(0.46),
+          T_CAPACITY_FUNDING_BED=CAPACITY_FUNDING_BED^(0.37),
+          T_OCCUPIED_BEDS=OCCUPIED_BEDS^(0.47),
+          T_UNOCCUPIED_BEDS=UNOCCUPIED_BEDS^(-0.11),
+          T_UNAVAILABLE_BEDS=UNAVAILABLE_BEDS^(-0.21))
+```
+
+The next step is to fit a new model with transformed variables.
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+# Fit a new model with transformed variables
+T_start_model <- lm(OCCUPANCY_RATE_BEDS ~ LOCATION_CITY + SECTOR + PROGRAM_MODEL + OVERNIGHT_SERVICE_TYPE + PROGRAM_AREA + T_CAPACITY_ACTUAL_BED + T_CAPACITY_FUNDING_BED + T_OCCUPIED_BEDS + T_UNOCCUPIED_BEDS + T_UNAVAILABLE_BEDS, data=T_data_clean)
+summary(T_start_model)
+```
+
+Now, i begin to reduce our model. Specifically, I apply automated selection because I want to know which one can be removed.
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+#Candidate model 1: automated selection
+Auto_reduced_model <- step(T_start_model, direction= "both")
+```
+It shows the predictors that are removed, which is "PROGRAM_MODEL". The AIC in the last model is 26000.22.
+
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+anova(Auto_reduced_model, T_start_model)
+#Fail to reject H0. Choose reduced model.
+```
+The P value here is 0.5843, which is large. This means that the auto reduced model is better than the full model. Therefore, I can create diagnostic plots for Auto_reduced_model.
 
 # Results
+
+```{r Figure15, fig.cap="Condition 1: draw a scatter plot between yi and y_hat.", echo=FALSE, warning=FALSE, message=FALSE}
+ 
+y_hat <- fitted(Auto_reduced_model)
+yi <- T_data_clean$OCCUPANCY_RATE_BEDS
+plot(yi[0:length(y_hat)],y_hat)
+```
+
+```{r Figure16, fig.cap="Condition 2: draw scatter plots between numerical predictors", echo=FALSE, warning=FALSE, message=FALSE}
+
+pairs(~ T_CAPACITY_ACTUAL_BED + T_CAPACITY_FUNDING_BED + 
+    T_OCCUPIED_BEDS + T_UNOCCUPIED_BEDS + T_UNAVAILABLE_BEDS, data = T_data_clean)
+```
+Same as before, Figure \@ref(fig:Figure15) and Figure \@ref(fig:Figure16) display that both Condition 1 and 2 are held in the reduced model. 
+
+```{r Figure17, fig.cap="Residual vs. Predictors", echo=FALSE, warning=FALSE, message=FALSE}
+par(mfrow = c(3, 2))
+plot(T_data_clean$T_CAPACITY_ACTUAL_BED[0:length(res)], res)
+plot(T_data_clean$T_CAPACITY_FUNDING_BED[0:length(res)], res)
+plot(T_data_clean$T_OCCUPIED_BEDS[0:length(res)], res)
+plot(T_data_clean$T_UNOCCUPIED_BEDS[0:length(res)], res)
+plot(T_data_clean$T_UNAVAILABLE_BEDS[0:length(res)], res)
+
+```
+
+```{r Figure18, fig.cap="Residual QQ Plot", echo=FALSE, warning=FALSE, message=FALSE}
+# Residual QQ Plot
+qqnorm(res)
+qqline(res)
+```
+From Figure \@ref(fig:Figure17) and Figure \@ref(fig:Figure18), the linearity and the constant variance should hold. However, the independence and normality may be violated. 
+
+The distribution of my response variable is right skewed, which may cause problems. Moreover, it is observed that there is a positive relationship between the number of rooms showing as occupied and the proportion of actual bed capacity that is occupied for the reporting date. It also displays that the number of rooms that are showing as available for occupancy that are not occupied as of the occupancy date has a negative relationship with the proportion of actual bed capacity that is occupied. There is a strong pattern between yi and y_hat, and there is no/linear relationship between predictors, so the two conditions hold. According to the following graphs, the linearity holds. Regarding to independence, there appear to be some evidence of grouping in residual plots. Constant variance is difficult to tell since some residuals vs. predictors plots contain points that are far away. For normality, there is lifting in the tails. After fitting a new model with transformed variables, we apply automated selection to determine which variables can be removed. To be specific, predictor removed is PROGRAM_MODEL".
+
+The results means LOCATION_CITY, SECTOR, OVERNIGHT_SERVICE_TYPE, PROGRAM_AREA, T_CAPACITY_ACTUAL_BED, T_CAPACITY_FUNDING_BED, T_OCCUPIED_BEDS, T_UNOCCUPIED_BEDS, T_UNAVAILABLE_BEDS are important predictors. The Auto reduced model has ANOVA p-value of 0.5843. This means the auto reduced model is better. For both Auto_reduced_model, the linearity holds. There appear to be some evidence of grouping. The constant variance can be improved. There is lifting in the tails. 
+
+In conclusion, I will state some of the possible ways for the program to increase its beds' occupied rates. This includes increasing the number of beds showing as available for occupancy and the beds showing as occupied by a shelter user. Moreover, it is also useful to decrease the number of beds that are showing as available for occupancy that are not occupied as of the occupancy date, and beds that are not currently available. 
 
 # Discussion
 
 ## First discussion point
-
-If my paper were 10 pages, then should be be at least 2.5 pages. The discussion is a chance to show off what you know and what you learnt from all this. 
+In this paper, I aim to analyze the variables that have significant effects on the proportion of actual bed capacity that is occupied for the reporting date. The variables I used include LOCATION_CITY, SETOR, PROGRAM_MODEL, OVERNIGHT_SERVICE_TYPE, PROGRAM_AREA, CAPACITY_ACTUAL_BED, CAPACITY_FUNDING_BED, OCCUPIED_BEDS, UNOCCUPIED_BEDS, UNAVAILABLE_BEDS [@citeData]. The response variable is OCCUPANCY_RATE_BEDS [@citeData]. To begin with, I conduct the exploratory data analysis in order to build the starting model. After creating my starting model by common sense and results of EDA, I check the two conditions before assessing the model assumptions. After that, I use plots to identify potential violations against model assumptions, which are linearity, normality, constant variance, and uncorrelatedness. The next step is to explore model transformations to correct assumption violations. After that, I apply box-cox transformation for numerical variables and create transformed variables. The next step is to fit a new model with transformed variables by applying automated selection. Then, I apply same analysis on my reduced model, which is better than the full model. Overall, It was found that contributing factors include the programs' locations, gender, age, household size of the service user group, the type of overnight service provided, the program area. Furthermore, the number of beds showing as available for occupancy, rooms that a program has been approved to provide, rooms showing as occupied by a shelter user, rooms that are showing as available for occupancy that are not occupied, and rooms that are not currently available also have significant influences on the response variable. 
 
 ## Second discussion point
+From this paper, we learn that increasing the number of beds showing as available for occupancy and the beds showing as occupied by a shelter user is an effective way to increase its beds' occupied rates. Moreover, it is also useful to decrease the number of beds that are showing as available for occupancy that are not occupied as of the occupancy date, and beds that are not currently available. 
 
 ## Third discussion point
+Furthermore, it’s important to find the patterns and trends of the proportion of actual room capacity that is occupied for the reporting date. This report shows its contributing factors, so program managers can utilize this to make disciplines that can solve this issue more effectively. In this way, people can have a better living standards, and the economic development will be improved.
 
 ## Weaknesses and next steps
-
-Weaknesses and next steps should also be included.
-
-\newpage
-
-\appendix
-
-# Appendix {-}
-
-
-# Additional details
+The limitations include that the EDA part shows the response variable and predictors don’t follow normal distributions. Specifically, there is unbalanced data volume. This may cause the results to be incredible and may be the reasons why the QQ plots contain violations. Also, I didn’t checkthe leverage points, so it’s possible there do contain pointsthat aren’t credible. Moreover, violations still exist in residual plots of my reduced model. For the next step, we should try to avoid these problems and focus on other possible factors that can influence the proportion of actual bed capacity that is occupied for the reporting date.  
 
 
 \newpage
+
 
 
 # References
-
-
